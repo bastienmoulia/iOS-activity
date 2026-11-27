@@ -23,6 +23,7 @@ final class ActivityTracker: ObservableObject {
 
     private let manager = CMMotionActivityManager()
     private let queryQueue = OperationQueue()
+    private var isAppActive = false
 
     var isAvailable: Bool {
         CMMotionActivityManager.isActivityAvailable()
@@ -32,8 +33,26 @@ final class ActivityTracker: ObservableObject {
         self.store = store
     }
 
+    /// Called when the app becomes active: saves the activities recorded while
+    /// the app was in background, then starts live updates.
+    func appDidBecomeActive() async {
+        isAppActive = true
+        // History must be saved before live updates, otherwise a live record
+        // would be newer than the background history and the history would be ignored.
+        await syncHistory()
+        if isAppActive {
+            startLiveUpdates()
+        }
+    }
+
+    /// Called when the app goes to background.
+    func appDidEnterBackground() {
+        isAppActive = false
+        stopLiveUpdates()
+    }
+
     /// Starts live activity updates (foreground).
-    func startLiveUpdates() {
+    private func startLiveUpdates() {
         guard isAvailable, !isTracking else { return }
         isTracking = true
         manager.startActivityUpdates(to: .main) { [weak self] activity in
@@ -47,7 +66,7 @@ final class ActivityTracker: ObservableObject {
         }
     }
 
-    func stopLiveUpdates() {
+    private func stopLiveUpdates() {
         guard isTracking else { return }
         manager.stopActivityUpdates()
         isTracking = false

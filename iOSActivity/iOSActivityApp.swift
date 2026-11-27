@@ -15,10 +15,9 @@ struct iOSActivityApp: App {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
-                tracker.startLiveUpdates()
-                Task { await tracker.syncHistory() }
+                Task { await tracker.appDidBecomeActive() }
             case .background:
-                tracker.stopLiveUpdates()
+                tracker.appDidEnterBackground()
                 BackgroundRefresh.schedule()
             default:
                 break
